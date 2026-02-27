@@ -28,3 +28,10 @@ pub struct SwiftPackage {
     pub path: String,
     pub test_targets: Vec<String>,
 }
+
+/// Progress event sent during project discovery for UI feedback.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ScanProgressEvent {
+    pub phase: String,
+    pub message: String,
+}

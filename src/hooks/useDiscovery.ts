@@ -6,6 +6,11 @@ import {
   type ProjectInfo as DbProjectInfo,
 } from "../lib/db";
 
+export interface ScanProgressEvent {
+  phase: string;
+  message: string;
+}
+
 export interface Scheme {
   name: string;
   test_targets: string[];

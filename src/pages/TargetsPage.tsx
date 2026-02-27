@@ -1,10 +1,15 @@
+import { listen } from "@tauri-apps/api/event";
 import { open } from "@tauri-apps/plugin-dialog";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import SearchInput from "../components/common/SearchInput";
 import TopBar from "../components/layout/TopBar";
 import TargetCheckbox from "../components/targets/TargetCheckbox";
-import { useStoredDiscovery, useScanProject } from "../hooks/useDiscovery";
+import {
+  useStoredDiscovery,
+  useScanProject,
+  type ScanProgressEvent,
+} from "../hooks/useDiscovery";
 import { useAddProject, useCurrentProject } from "../hooks/useProjects";
 import { useSuites } from "../hooks/useSuites";
 import { useTestExecution } from "../hooks/useTestExecution";
@@ -41,6 +46,9 @@ export default function TargetsPage() {
   const [editSuiteSchemeKeys, setEditSuiteSchemeKeys] = useState<Set<string>>(new Set());
   const [editSuitePackageKeys, setEditSuitePackageKeys] = useState<Set<string>>(new Set());
   const [deleteSuiteId, setDeleteSuiteId] = useState<string | null>(null);
+  const [scanProgress, setScanProgress] = useState<ScanProgressEvent | null>(
+    null,
+  );
 
   const navigate = useNavigate();
   const { data: currentProject } = useCurrentProject();
@@ -158,12 +166,25 @@ export default function TargetsPage() {
   };
 
   const handleScan = () => {
-    if (currentProject) {
-      scanMutation.mutate({
-        projectId: currentProject.id,
-        path: currentProject.path,
-      });
-    }
+    if (!currentProject) return;
+    setScanProgress({ phase: "start", message: "Starting scan..." });
+    const eventName = "scan-progress";
+    listen<ScanProgressEvent>(eventName, (event) => {
+      setScanProgress(event.payload);
+    }).then((unlisten) => {
+      scanMutation.mutate(
+        {
+          projectId: currentProject.id,
+          path: currentProject.path,
+        },
+        {
+          onSettled: () => {
+            unlisten();
+            setScanProgress(null);
+          },
+        },
+      );
+    });
   };
 
   const notScannedYet =
@@ -269,6 +290,22 @@ export default function TargetsPage() {
             >
               {isScanning ? "Scanning..." : "Scan"}
             </button>
+            {isScanning && scanProgress && (
+              <p
+                className="muted"
+                style={{
+                  marginTop: 12,
+                  fontSize: 13,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: 8,
+                }}
+              >
+                <span className="spinner" aria-hidden />
+                {scanProgress.message}
+              </p>
+            )}
             {scanError && (
               <p
                 style={{
